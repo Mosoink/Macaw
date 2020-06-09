@@ -11,6 +11,10 @@ import SWXMLHash
 
 open class SVGParser {
 
+    public typealias FontFimalyModifier = (String) -> String?
+
+    public var fontFimalyModifier: FontFimalyModifier?
+
     /// Parse an SVG file identified by the specified bundle, name and file extension.
     ///
     /// - Parameters:
@@ -73,8 +77,8 @@ open class SVGParser {
 
     /// Parse the specified content of an SVG file.
     /// - returns: Root node of the corresponding Macaw scene.
-    open class func parse(text: String) throws -> Node {
-        return try SVGParser(text).parse()
+    open class func parse(text: String, configAction: ((SWXMLHashOptions) -> Void)? = nil) throws -> Node {
+        return try SVGParser(text).parse(configAction)
     }
 
     let availableStyleAttributes = ["stroke",
@@ -127,15 +131,17 @@ open class SVGParser {
 
     fileprivate typealias PathCommand = (type: PathCommandType, expression: String, absolute: Bool)
 
-    fileprivate init(_ string: String, pos: Transform = Transform()) {
+    public init(_ string: String, pos: Transform = Transform()) {
         self.xmlString = string
         self.initialPosition = pos
     }
 
-    fileprivate func parse() throws -> Group {
-        let config = SWXMLHash.config { config in
-            config.shouldProcessNamespaces = true
+    public func parse(_ configAction: ((SWXMLHashOptions) -> Void)? = nil) throws -> Group {
+        let config = SWXMLHash.config { opts in
+            opts.shouldProcessNamespaces = true
+            configAction?(opts)
         }
+
         let parsedXml = config.parse(xmlString)
 
         var svgElement: SWXMLHash.XMLElement?
@@ -1710,7 +1716,14 @@ open class SVGParser {
     }
 
     fileprivate func getFontName(_ attributes: [String: String]) -> String? {
-        return attributes["font-family"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let old = attributes["font-family"] else {
+            return nil
+        }
+        if let fontFimalyModifierOK = fontFimalyModifier,
+            let newFont = fontFimalyModifierOK(old) {
+            return newFont
+        }
+        return old.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     fileprivate func getFontSize(_ attributes: [String: String]) -> Int? {
