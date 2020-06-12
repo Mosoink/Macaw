@@ -52,6 +52,23 @@ open class SVGImage: NSObject {
             return img
         }
     }
+    
+    @objc public func image(fillColor: MColor) -> MImage? {
+        guard let nOK = node, var size = nOK.bounds?.size() else {
+            return nil
+        }
+        let didSetScale = scale != 1.0
+
+        if didSetScale {
+            let scaleOK = Double(scale)
+            size = Size(size.w * scaleOK, size.h * scaleOK)
+        }
+        var img = nOK.toNativeImage(size: size, layout: .of(contentMode: .scaleAspectFit), scale: 1, fillColor: fillColor)
+        if didSetScale, let cgImg = img.cgImage {
+            img = MImage(cgImage: cgImg, scale: scale, orientation: .up)
+        }
+        return img
+    }
 
     @objc public var size: CGSize {
         get {
